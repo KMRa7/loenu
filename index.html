@@ -735,6 +735,43 @@
             visibility: hidden;
             opacity: 0;
         }
+
+        /* 第三希望日のフィールドと送信ボタンの間にスペースを追加 */
+
+        /* 方法1: 第三希望日のフィールドに下マージンを追加 */
+        #date3 {
+            margin-bottom: 30px;
+            /* お好みの間隔に調整 */
+        }
+
+        /* 方法2: 送信ボタンに上マージンを追加 */
+        .submit-button,
+        button[onclick="submitForm()"] {
+            margin-top: 30px;
+            /* お好みの間隔に調整 */
+        }
+
+        /* 方法3: 第三希望日を含む全体のコンテナに下パディングを追加 */
+        .date-selection-container:last-of-type {
+            padding-bottom: 30px;
+        }
+
+        /* 方法4: より具体的な間隔調整（HTMLの構造に応じて調整） */
+        .form-section:has(#date3) {
+            margin-bottom: 40px;
+        }
+
+        /* レスポンシブ対応 */
+        @media (max-width: 768px) {
+            #date3 {
+                margin-bottom: 20px;
+            }
+
+            .submit-button,
+            button[onclick="submitForm()"] {
+                margin-top: 20px;
+            }
+        }
     </style>
 </head>
 
