@@ -835,7 +835,7 @@
 
         document.addEventListener('DOMContentLoaded', function () {
             liff.init({
-                liffId: '2007458512-xZR3av9K'
+                liffId: '2005254357-zKma9BZk'
             }).then(() => {
                 console.log('LIFF初期化成功');
             }).catch((err) => {
@@ -843,16 +843,17 @@
             });
 
             fetchAvailability(currentDate);
-            
-            // 入力内容の復元
-            const savedPhone = localStorage.getItem('phone');
-            if (savedPhone) document.getElementById('phone').value = savedPhone;
+
+            // 入力内容の復元（localStorage使用を避けるため、セッション内での保持のみ）
+            // const savedPhone = localStorage.getItem('phone');
+            // if (savedPhone) document.getElementById('phone').value = savedPhone;
         });
 
-        // 入力内容をローカルストレージに保存
+        // 入力内容を一時的に保存（メモリ内のみ）
+        let savedInputs = {};
         function saveInput(id) {
             const value = document.getElementById(id).value;
-            localStorage.setItem(id, value);
+            savedInputs[id] = value;
         }
 
         // スムーズスクロール
@@ -884,70 +885,116 @@
         }
 
         function selectSymptom(button, treatmentId) {
+            const menuText = button.textContent.trim();
+            const menuPrice = parseInt(button.getAttribute('data-price'), 10) || 0;
+
             // ボタンの選択状態を切り替え
             if (button.classList.contains('active')) {
+                // 選択解除
                 button.classList.remove('active');
+                // 選択されたメニューから削除
+                const index = selectedSymptom.findIndex(item => item.name === menuText);
+                if (index > -1) {
+                    selectedSymptom.splice(index, 1);
+                }
             } else {
-                const selectedButtons = document.querySelectorAll('.symptoms button.active');
-                if (selectedButtons.length >= 3) {
+                // 選択追加（最大3つまで）
+                if (selectedSymptom.length >= 3) {
+                    alert('メニューは最大3つまで選択できます。');
                     return;
                 }
                 button.classList.add('active');
-            }
-
-            // 現在選択されているボタンを取得
-            const updatedSelectedButtons = document.querySelectorAll('.symptoms button.active');
-            const treatmentText = document.getElementById('treatment-text');
-
-            // メニュー情報をリセット
-            selectedSymptom = [];
-            menuPrice = 0;
-
-            if (updatedSelectedButtons.length === 0) {
-                selectedSymptom = null;
-            } else {
-                updatedSelectedButtons.forEach((btn) => {
-                    selectedSymptom.push(btn.textContent);
-                    menuPrice += parseInt(btn.getAttribute('data-price'), 10) || 0;
+                // 選択されたメニューに追加
+                selectedSymptom.push({
+                    name: menuText,
+                    price: menuPrice,
+                    treatmentId: treatmentId
                 });
             }
 
+            // 予約可能状況を更新
             fetchAvailability(currentDate);
 
-            // 治療情報の表示
-            if (treatmentId === 'treatment1') {
-                treatmentText.innerHTML = `<div style="text-align: left;"><strong>所要時間：90分</strong><br>※症状によりお時間が前後する場合がございます</div><div style="text-align: right;"><strong>料金：6,500円<br>初診料：＋2,200円</strong></div>`;
-            } else if (treatmentId === 'treatment2') {
-                treatmentText.innerHTML = `<div style="text-align: left;"><strong>所要時間：60分</strong><br>※症状によりお時間が前後する場合がございます</div><div style="text-align: right;"><strong>料金：4,500円<br>初診料：＋2,200円</strong></div>`;
-            } else if (treatmentId === 'treatment3') {
-                treatmentText.innerHTML = `<div style="text-align: left;"><strong>所要時間：120分</strong><br>※症状によりお時間が前後する場合がございます</div><div style="text-align: right;"><strong>料金：8,700円<br>初診料：＋2,200円</strong></div>`;
-            } else if (treatmentId === 'treatment4') {
-                treatmentText.innerHTML = `<div style="text-align: left;"><strong>所要時間：30分</strong><br>※症状によりお時間が前後する場合がございます</div><div style="text-align: right;"><strong>料金：1,700円<br>初診料：＋2,200円</strong></div>`;
-            } else if (treatmentId === 'treatment5') {
-                treatmentText.innerHTML = `<div style="text-align: left;"><strong>所要時間：60分</strong><br>※症状によりお時間が前後する場合がございます</div><div style="text-align: right;"><strong>料金：6,500円</strong></div>`;
-            } else if (treatmentId === 'treatment6') {
-                treatmentText.innerHTML = `<div style="text-align: left;"><strong>所要時間：30分</strong><br>※症状によりお時間が前後する場合がございます</div><div style="text-align: right;"><strong>料金：4,500円</strong></div>`;
-            } else {
-                treatmentText.innerHTML = '';
-            }
+            // 選択されたメニューの表示を更新
+            updateSelectedMenusDisplay();
+        }
 
-            // 要素の移動と表示
-            if (treatmentText) {
-                button.parentNode.insertBefore(treatmentText, button.nextSibling);
-                treatmentText.style.display = 'block';
-            }
-
-            // 選択中のメニュー表示
+        function updateSelectedMenusDisplay() {
             const selectedMenusDisplay = document.getElementById("selected-menus-display");
-            if (selectedMenusDisplay) {
-                if (selectedSymptom && selectedSymptom.length > 0) {
-                    selectedMenusDisplay.innerHTML = `【選択中のメニュー】<br>・${selectedSymptom.join(' <br>・ ')}`;
-                    selectedMenusDisplay.style.display = 'block';
-                    button.parentNode.insertBefore(selectedMenusDisplay, button.nextSibling);
-                } else {
-                    selectedMenusDisplay.innerHTML = '';
-                    selectedMenusDisplay.style.display = 'none';
+            const treatmentText = document.getElementById('treatment-text');
+
+            if (!selectedMenusDisplay) return;
+
+            if (selectedSymptom.length === 0) {
+                selectedMenusDisplay.innerHTML = '';
+                selectedMenusDisplay.style.display = 'none';
+                if (treatmentText) {
+                    treatmentText.innerHTML = '';
+                    treatmentText.style.display = 'none';
                 }
+                return;
+            }
+
+            // 選択されたメニューの表示
+            const menuList = selectedSymptom.map(item => `・${item.name}`).join('<br>');
+            const totalPrice = selectedSymptom.reduce((sum, item) => sum + item.price, 0);
+
+            selectedMenusDisplay.innerHTML = `
+        <div style="background-color: #f0f8ff; padding: 10px; border-radius: 5px; margin: 10px 0;">
+            <strong>【選択中のメニュー】</strong><br>
+            ${menuList}<br>
+            <div style="text-align: right; margin-top: 10px;">
+                <strong>合計料金: ${totalPrice.toLocaleString()}円</strong>
+                ${selectedSymptom.some(item => ['treatment1', 'treatment2', 'treatment3', 'treatment4'].includes(item.treatmentId)) ?
+                    '<br><small>※初診の場合は別途初診料(2,200円)がかかります</small>' : ''}
+            </div>
+        </div>
+    `;
+            selectedMenusDisplay.style.display = 'block';
+
+            // 治療時間の計算と表示
+            let totalDuration = 0;
+            let treatmentInfo = [];
+
+            selectedSymptom.forEach(item => {
+                switch (item.treatmentId) {
+                    case 'treatment1':
+                        totalDuration += 90;
+                        treatmentInfo.push('90分メニュー');
+                        break;
+                    case 'treatment2':
+                        totalDuration += 60;
+                        treatmentInfo.push('60分メニュー');
+                        break;
+                    case 'treatment3':
+                        totalDuration += 120;
+                        treatmentInfo.push('120分メニュー');
+                        break;
+                    case 'treatment4':
+                        totalDuration += 30;
+                        treatmentInfo.push('30分メニュー');
+                        break;
+                    case 'treatment5':
+                        totalDuration += 60;
+                        treatmentInfo.push('60分メニュー');
+                        break;
+                    case 'treatment6':
+                        totalDuration += 30;
+                        treatmentInfo.push('30分メニュー');
+                        break;
+                }
+            });
+
+            if (treatmentText && totalDuration > 0) {
+                treatmentText.innerHTML = `
+            <div style="background-color: #fff8dc; padding: 10px; border-radius: 5px; margin: 10px 0;">
+                <div style="text-align: left;">
+                    <strong>予想所要時間：約${totalDuration}分</strong><br>
+                    <small>※症状や施術内容により時間が前後する場合があります</small>
+                </div>
+            </div>
+        `;
+                treatmentText.style.display = 'block';
             }
         }
 
@@ -971,15 +1018,25 @@
             // 選択されたメニューセクションを表示
             document.getElementById(menu).classList.add('active');
 
-            // treatment-textの内容をリセット
-            const treatmentText = document.getElementById("treatment-text");
-            if (treatmentText) {
-                treatmentText.innerHTML = "";
-            }
+            // 既に選択されているメニューがある場合は表示を維持
+            updateSelectedMenusDisplay();
+        }
 
-            // メニュー情報をリセット
+        function clearAllSelections() {
+            // すべての選択をクリア
             selectedSymptom = [];
             menuPrice = 0;
+
+            // すべてのアクティブボタンを非アクティブに
+            document.querySelectorAll('.symptoms button.active').forEach(button => {
+                button.classList.remove('active');
+            });
+
+            // 表示をクリア
+            updateSelectedMenusDisplay();
+
+            // 予約可能状況を更新
+            fetchAvailability(currentDate);
         }
 
         function submitForm() {
@@ -1008,18 +1065,37 @@
                 return;
             }
 
-            // メニューを箇条書きに整形
-            const formattedSymptoms = selectedSymptom.map(symptom => `・${symptom}`).join('\n');
+            // メニューを箇条書きに整形（価格情報も含める）
+            const formattedSymptoms = selectedSymptom.map(item => `・${item.name} (${item.price.toLocaleString()}円)`).join('\n');
+            const totalPrice = selectedSymptom.reduce((sum, item) => sum + item.price, 0);
+            const hasInitialConsultation = selectedSymptom.some(item =>
+                ['treatment1', 'treatment2', 'treatment3', 'treatment4'].includes(item.treatmentId)
+            );
 
             // LINEトークにメッセージを送信
             liff.sendMessages([{
                 type: 'text',
-                text: `【予約フォーム】\n\nお電話：${phone}\n\nメニュー：\n${formattedSymptoms}\n\n【希望日時】：\n・第一希望日\n${formatDate(date1)}\n\n・第二希望日\n${formatDate(date2)}`
+                text: `【予約フォーム】
+
+お電話：${phone}
+
+メニュー：
+${formattedSymptoms}
+
+合計料金：${totalPrice.toLocaleString()}円${hasInitialConsultation ? '\n※初診の場合は別途初診料(2,200円)' : ''}
+
+【希望日時】：
+・第一希望日
+${formatDate(date1)}
+
+・第二希望日
+${formatDate(date2)}`
             }]).then(() => {
-                alert('当日キャンセルは無いようにお願いいたします。');
+                alert('予約申込みを送信しました。当日キャンセルは無いようにお願いいたします。');
                 liff.closeWindow();
             }).catch((err) => {
                 console.error('メッセージの送信に失敗しました', err);
+                alert('送信に失敗しました。もう一度お試しください。');
             });
         }
 
@@ -1034,6 +1110,7 @@
             return `${year}年${month}月${day}日 ${hours}:${minutes}`;
         }
 
+        // 以下、既存のカレンダー関連の関数はそのまま使用
         async function fetchAvailability(date) {
             const startTime = new Date(date);
             const endTime = new Date(date);
@@ -1041,7 +1118,6 @@
 
             const cacheKey = startTime.toISOString() + endTime.toISOString();
 
-            // キャッシュを確認
             if (availabilityCache[cacheKey]) {
                 console.log('Using cached data');
                 updateCalendar(availabilityCache[cacheKey].availability, availabilityCache[cacheKey].businessDays);
@@ -1143,7 +1219,7 @@
                     slotStart.setHours(parseInt(times[j].split(':')[0]), parseInt(times[j].split(':')[1]), 0, 0);
 
                     const slotEnd = new Date(slotStart);
-                    slotEnd.setMinutes(slotStart.getMinutes() + 60); // デフォルト60分
+                    slotEnd.setMinutes(slotStart.getMinutes() + 60);
 
                     if (slotEnd.getDate() !== slotStart.getDate()) {
                         cell.textContent = '✕';
@@ -1264,4 +1340,5 @@
         }
     </script>
 </body>
+
 </html>
